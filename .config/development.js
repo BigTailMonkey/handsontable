@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Config responsible for building Handsontable `dist/` files:
  *  - handsontable.js
@@ -7,10 +5,8 @@
  *  - handsontable.full.js
  *  - handsontable.full.css
  */
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
-const webpack = require('webpack');
 const configFactory = require('./base');
 
 const PACKAGE_FILENAME = process.env.HOT_FILENAME;
@@ -21,7 +17,6 @@ module.exports.create = function create(envArgs) {
 
   configBase.forEach(function(c) {
     c.output.filename = PACKAGE_FILENAME + '.js';
-
     c.devtool = 'source-map';
     // Exclude all external dependencies from 'base' bundle (handsontable.js and handsontable.css files)
     c.externals = {
@@ -42,6 +37,12 @@ module.exports.create = function create(envArgs) {
         commonjs2: 'pikaday',
         commonjs: 'pikaday',
         amd: 'pikaday',
+      },
+      'hot-formula-parser': {
+        root: 'formulaParser',
+        commonjs2: 'hot-formula-parser',
+        commonjs: 'hot-formula-parser',
+        amd: 'hot-formula-parser',
       }
     };
     c.module.rules.unshift({
@@ -52,7 +53,7 @@ module.exports.create = function create(envArgs) {
       loader: path.resolve(__dirname, 'loader/empty-loader.js'),
     });
     c.plugins.push(
-      new ExtractTextPlugin(PACKAGE_FILENAME + '.css')
+      new MiniCssExtractPlugin({ filename: `${PACKAGE_FILENAME}.css` }),
     );
   });
 
@@ -82,7 +83,7 @@ module.exports.create = function create(envArgs) {
     });
 
     c.plugins.push(
-      new ExtractTextPlugin(PACKAGE_FILENAME + '.full.css')
+      new MiniCssExtractPlugin({ filename: `${PACKAGE_FILENAME}.full.css` })
     );
   });
 

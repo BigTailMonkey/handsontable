@@ -336,7 +336,7 @@ describe('Core_dataSchema', () => {
     const idAccessor = createAccessorForProperty('id');
     const nameAccessor = createAccessorForProperty('name');
 
-    hot = handsontable({
+    const hot = handsontable({
       data: [
         Model({
           id: 1,
@@ -370,7 +370,7 @@ describe('Core_dataSchema', () => {
     const idAccessor = createAccessorForProperty('id');
     const nameAccessor = createAccessorForProperty('name');
 
-    hot = handsontable({
+    const hot = handsontable({
       data: [
         Model({
           id: 1,
@@ -509,5 +509,4 @@ describe('Core_dataSchema', () => {
     expect(dataAtRow.name).toEqual(null);
     expect(dataAtRow.surname).toEqual(null);
   });
-
 });

@@ -4,6 +4,7 @@ import {
   outerWidth,
   resetCssTransform
 } from './../../../../helpers/dom/element';
+import BottomLeftCornerOverlayTable from './../table/bottomLeftCorner';
 import Overlay from './_base';
 
 /**
@@ -11,7 +12,7 @@ import Overlay from './_base';
  */
 class BottomLeftCornerOverlay extends Overlay {
   /**
-   * @param {Walkontable} wotInstance
+   * @param {Walkontable} wotInstance The Walkontable instance.
    */
   constructor(wotInstance) {
     super(wotInstance);
@@ -19,54 +20,54 @@ class BottomLeftCornerOverlay extends Overlay {
   }
 
   /**
-   * Checks if overlay should be fully rendered
+   * Factory method to create a subclass of `Table` that is relevant to this overlay.
    *
-   * @returns {Boolean}
+   * @see Table#constructor
+   * @param {...*} args Parameters that will be forwarded to the `Table` constructor.
+   * @returns {Table}
+   */
+  createTable(...args) {
+    return new BottomLeftCornerOverlayTable(...args);
+  }
+
+  /**
+   * Checks if overlay should be fully rendered.
+   *
+   * @returns {boolean}
    */
   shouldBeRendered() {
-    /* eslint-disable no-unneeded-ternary */
-    return this.wot.getSetting('fixedRowsBottom') &&
-      (this.wot.getSetting('fixedColumnsLeft') || this.wot.getSetting('rowHeaders').length) ? true : false;
+    const { wot } = this;
+
+    return wot.getSetting('shouldRenderBottomOverlay') && wot.getSetting('shouldRenderLeftOverlay');
   }
 
   /**
-   * Reposition the overlay.
-   */
-  repositionOverlay() {
-    let scrollbarWidth = getScrollbarWidth();
-    const cloneRoot = this.clone.wtTable.holder.parentNode;
-
-    if (this.wot.wtTable.holder.clientHeight === this.wot.wtTable.holder.offsetHeight) {
-      scrollbarWidth = 0;
-    }
-
-    cloneRoot.style.top = '';
-    cloneRoot.style.bottom = `${scrollbarWidth}px`;
-  }
-
-  /**
-   * Updates the corner overlay position
+   * Updates the corner overlay position.
+   *
+   * @returns {boolean}
    */
   resetFixedPosition() {
+    const { wot } = this;
+
     this.updateTrimmingContainer();
 
-    if (!this.wot.wtTable.holder.parentNode) {
+    if (!wot.wtTable.holder.parentNode) {
       // removed from DOM
       return;
     }
+
     const overlayRoot = this.clone.wtTable.holder.parentNode;
-    const tableHeight = outerHeight(this.clone.wtTable.TABLE);
-    const tableWidth = outerWidth(this.clone.wtTable.TABLE);
 
     overlayRoot.style.top = '';
 
-    if (this.trimmingContainer === window) {
-      const box = this.wot.wtTable.hider.getBoundingClientRect();
-      const bottom = Math.ceil(box.bottom);
-      const left = Math.ceil(box.left);
+    if (this.trimmingContainer === wot.rootWindow) {
+      const { rootDocument, wtTable } = this.wot;
+      const hiderRect = wtTable.hider.getBoundingClientRect();
+      const bottom = Math.ceil(hiderRect.bottom);
+      const left = Math.ceil(hiderRect.left);
+      const bodyHeight = rootDocument.documentElement.clientHeight;
       let finalLeft;
       let finalBottom;
-      const bodyHeight = document.body.offsetHeight;
 
       if (left < 0) {
         finalLeft = -left;
@@ -79,10 +80,10 @@ class BottomLeftCornerOverlay extends Overlay {
       } else {
         finalBottom = 0;
       }
+
       finalBottom += 'px';
       finalLeft += 'px';
 
-      overlayRoot.style.top = '';
       overlayRoot.style.left = finalLeft;
       overlayRoot.style.bottom = finalBottom;
 
@@ -90,8 +91,33 @@ class BottomLeftCornerOverlay extends Overlay {
       resetCssTransform(overlayRoot);
       this.repositionOverlay();
     }
-    overlayRoot.style.height = `${tableHeight === 0 ? tableHeight : tableHeight}px`;
-    overlayRoot.style.width = `${tableWidth === 0 ? tableWidth : tableWidth}px`;
+
+    let tableHeight = outerHeight(this.clone.wtTable.TABLE);
+    const tableWidth = outerWidth(this.clone.wtTable.TABLE);
+
+    if (!this.wot.wtTable.hasDefinedSize()) {
+      tableHeight = 0;
+    }
+
+    overlayRoot.style.height = `${tableHeight}px`;
+    overlayRoot.style.width = `${tableWidth}px`;
+
+    return false;
+  }
+
+  /**
+   * Reposition the overlay.
+   */
+  repositionOverlay() {
+    const { wtTable, rootDocument } = this.wot;
+    const cloneRoot = this.clone.wtTable.holder.parentNode;
+    let scrollbarWidth = getScrollbarWidth(rootDocument);
+
+    if (wtTable.holder.clientHeight === wtTable.holder.offsetHeight) {
+      scrollbarWidth = 0;
+    }
+
+    cloneRoot.style.bottom = `${scrollbarWidth}px`;
   }
 }
 

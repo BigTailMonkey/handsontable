@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Config responsible for building Handsontable `dist/` minified files:
  *  - handsontable.min.js
@@ -7,10 +5,9 @@
  *  - handsontable.full.min.js
  *  - handsontable.full.min.css
  */
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const webpack = require('webpack');
 const configFactory = require('./development');
 
@@ -22,31 +19,22 @@ module.exports.create = function create(envArgs) {
   // Add uglifyJs plugin for each configuration
   config.forEach(function(c) {
     const isFullBuild = /\.full\.js$/.test(c.output.filename);
-
     c.devtool = false;
     c.output.filename = c.output.filename.replace(/\.js$/, '.min.js');
 
-    // Remove all 'ExtractTextPlugin' instances
+    c.optimization = {
+      minimize: true,
+    };
+    // Remove all 'MiniCssExtractPlugin' instances
     c.plugins = c.plugins.filter(function(plugin) {
-      return !(plugin instanceof ExtractTextPlugin);
+      return !(plugin instanceof MiniCssExtractPlugin);
     });
 
     c.plugins.push(
-      new UglifyJSPlugin({
-        uglifyOptions: {
-          compressor: {
-            pure_getters: true,
-            unsafe: true,
-            unsafe_comps: true,
-            warnings: false,
-          },
-          mangle: true,
-          output: {
-            comments: /^!|@preserve|@license|@cc_on/i,
-          },
-        }
-      }),
-      new ExtractTextPlugin(PACKAGE_FILENAME + (isFullBuild ? '.full' : '') + '.min.css'),
+      new MiniCssExtractPlugin({
+          filename: `${PACKAGE_FILENAME}${isFullBuild ? '.full' : ''}.min.css`,
+      }
+        ),
       new OptimizeCssAssetsPlugin({
         assetNameRegExp: isFullBuild ? /\.full\.min\.css$/ : /\.min\.css$/,
         cssProcessorOptions: { zindex: false },
@@ -56,6 +44,12 @@ module.exports.create = function create(envArgs) {
     if (isFullBuild) {
       c.plugins.push(
         new CopyWebpackPlugin([
+          { // hot-formula-parser
+            from: {glob: 'node_modules/hot-formula-parser/LICENSE'}, to: 'hot-formula-parser', flatten: true
+          },
+          {
+            from: {glob: 'node_modules/hot-formula-parser/dist/formula-parser.js'}, to: 'hot-formula-parser', flatten: true
+          },
           { // moment
             from: {glob: 'node_modules/moment/@(moment.js|LICENSE)'}, to: 'moment', flatten: true
           },

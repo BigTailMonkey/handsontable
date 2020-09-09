@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Config responsible for building not minified Handsontable `languages/` files.
  */
@@ -12,6 +10,8 @@ const StringReplacePlugin  = require('string-replace-webpack-plugin');
 const WebpackOnBuildPlugin = require('on-build-webpack');
 const fs  = require('fs');
 const fsExtra  = require('fs-extra');
+
+const PACKAGE_FILENAME = process.env.HOT_FILENAME;
 
 function getEntryJsFiles() {
   const entryObject = {};
@@ -41,7 +41,7 @@ const ruleForSnippetsInjection = {
       {
         pattern: /import.+constants.+/,
         replacement: function() {
-          const snippet1 = `import Handsontable from '../../handsontable';`;
+          const snippet1 = `import Handsontable from '../../${PACKAGE_FILENAME}';`;
           const snippet2 = `const C = Handsontable.languages.dictionaryKeys;`;
 
           return `${snippet1}${NEW_LINE_CHAR.repeat(2)}${snippet2}`;
@@ -61,21 +61,24 @@ const ruleForSnippetsInjection = {
 
 module.exports.create = function create() {
   const config = {
+    mode: 'none',
     entry: getEntryJsFiles(),
     output: {
-      path: path.resolve(__dirname, '../' + OUTPUT_LANGUAGES_DIRECTORY),
-      libraryTarget: 'umd',
       filename: '[name].js',
+      globalObject: `typeof self !== 'undefined' ? self : this`,
       // Workaround below: Without this option webpack would export all language packs as globals
       libraryExport: '___',
-      umdNamedDefine: true
+      libraryTarget: 'umd',
+      path: path.resolve(__dirname, '../' + OUTPUT_LANGUAGES_DIRECTORY),
+      umdNamedDefine: true,
+      
     },
     externals: {
-      '../../handsontable': {
+      [`../../${PACKAGE_FILENAME}`]: {
         root: 'Handsontable',
-        commonjs2: '../../handsontable',
-        commonjs: '../../handsontable',
-        amd: '../../handsontable',
+        commonjs2: `../../${PACKAGE_FILENAME}`,
+        commonjs: `../../${PACKAGE_FILENAME}`,
+        amd: `../../${PACKAGE_FILENAME}`,
       },
     },
     module: {

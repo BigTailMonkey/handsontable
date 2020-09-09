@@ -157,7 +157,8 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(true);
     expect(getData()).toEqual([[false], [true], [true]]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should not check single box after hitting space, if cell is readOnly', () => {
@@ -291,7 +292,73 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(false);
     expect(getData()).toEqual([[false], [true], [false]]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false], [1, 0, false, true], [2, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback).toHaveBeenCalledWith([
+      [0, 0, true, false],
+      [1, 0, false, true],
+      [2, 0, true, false]
+    ], 'edit', undefined, undefined, undefined, undefined);
+  });
+
+  it('should reverse checkboxes state after hitting space, when multiple non-contiguous cells are selected', () => {
+    handsontable({
+      data: [[true], [false], [true]],
+      columns: [
+        { type: 'checkbox' }
+      ]
+    });
+
+    const afterChangeCallback = jasmine.createSpy('afterChangeCallback');
+    addHook('afterChange', afterChangeCallback);
+
+    let checkboxes = spec().$container.find(':checkbox');
+
+    expect(checkboxes.eq(0).prop('checked')).toBe(true);
+    expect(checkboxes.eq(1).prop('checked')).toBe(false);
+    expect(checkboxes.eq(2).prop('checked')).toBe(true);
+    expect(getData()).toEqual([[true], [false], [true]]);
+
+    selectCells([[0, 0], [2, 0]]);
+
+    keyDown('space');
+
+    checkboxes = spec().$container.find(':checkbox');
+
+    expect(checkboxes.eq(0).prop('checked')).toBe(false);
+    expect(checkboxes.eq(1).prop('checked')).toBe(false);
+    expect(checkboxes.eq(2).prop('checked')).toBe(false);
+    expect(getData()).toEqual([[false], [false], [false]]);
+    expect(afterChangeCallback.calls.count()).toEqual(2);
+  });
+
+  it('should reverse checkboxes state after hitting enter, when multiple non-contiguous cells are selected', () => {
+    handsontable({
+      data: [[false], [true], [true]],
+      columns: [
+        { type: 'checkbox' }
+      ]
+    });
+
+    const afterChangeCallback = jasmine.createSpy('afterChangeCallback');
+    addHook('afterChange', afterChangeCallback);
+
+    let checkboxes = spec().$container.find(':checkbox');
+
+    expect(checkboxes.eq(0).prop('checked')).toBe(false);
+    expect(checkboxes.eq(1).prop('checked')).toBe(true);
+    expect(checkboxes.eq(2).prop('checked')).toBe(true);
+    expect(getData()).toEqual([[false], [true], [true]]);
+
+    selectCells([[0, 0], [2, 0]]);
+
+    keyDown('enter');
+
+    checkboxes = spec().$container.find(':checkbox');
+
+    expect(checkboxes.eq(0).prop('checked')).toBe(true);
+    expect(checkboxes.eq(1).prop('checked')).toBe(true);
+    expect(checkboxes.eq(2).prop('checked')).toBe(false);
+    expect(getData()).toEqual([[true], [true], [false]]);
+    expect(afterChangeCallback.calls.count()).toEqual(2);
   });
 
   it('should reverse checkboxes state after hitting space, when multiple cells are selected and selStart > selEnd', () => {
@@ -323,7 +390,11 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(false);
     expect(getData()).toEqual([[false], [true], [false]]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false], [1, 0, false, true], [2, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback).toHaveBeenCalledWith([
+      [0, 0, true, false],
+      [1, 0, false, true],
+      [2, 0, true, false]
+    ], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should toggle checkbox even if cell value is in another datatype', () => {
@@ -397,7 +468,8 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(true);
     expect(getData()).toEqual([[false], [true], [true]]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should move down without changing checkbox state when enterBeginsEditing equals false', () => {
@@ -499,7 +571,8 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(false);
     expect(getData()).toEqual([['no'], ['yes'], ['no']]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, 'yes', 'no']], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, 'yes', 'no']], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should change checkbox state from checked to unchecked after hitting ENTER using custom check/uncheck templates in numeric format', () => {
@@ -535,7 +608,8 @@ describe('CheckboxRenderer', () => {
     expect(checkboxes.eq(2).prop('checked')).toBe(false);
     expect(getData()).toEqual([[0], [1], [0]]);
     expect(afterChangeCallback.calls.count()).toEqual(1);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, 1, 0]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, 1, 0]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should change checkbox state to unchecked after hitting DELETE', () => {
@@ -569,7 +643,8 @@ describe('CheckboxRenderer', () => {
     expect(getData()).toEqual([[false], [false], [true]]);
 
     expect(afterChangeCallback.calls.count()).toEqual(2);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should change checkbox notte to unchecked after hitting BACKSPACE', () => {
@@ -603,7 +678,8 @@ describe('CheckboxRenderer', () => {
     expect(getData()).toEqual([[false], [false], [true]]);
 
     expect(afterChangeCallback.calls.count()).toEqual(2);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, true, false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should change  notkbox state to unchecked after hitting DELETE (from #bad-value# state)', () => {
@@ -630,7 +706,8 @@ describe('CheckboxRenderer', () => {
     expect(getData()).toEqual([[false], [false]]);
 
     expect(afterChangeCallback.calls.count()).toEqual(2);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, 'foo', false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, 'foo', false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('should change checkbox  note to unchecked after hitting BACKSPACE (from #bad-value# state)', () => {
@@ -657,7 +734,8 @@ describe('CheckboxRenderer', () => {
     expect(getData()).toEqual([[false], [false]]);
 
     expect(afterChangeCallback.calls.count()).toEqual(2);
-    expect(afterChangeCallback).toHaveBeenCalledWith([[0, 0, 'foo', false]], 'edit', undefined, undefined, undefined, undefined);
+    expect(afterChangeCallback)
+      .toHaveBeenCalledWith([[0, 0, 'foo', false]], 'edit', undefined, undefined, undefined, undefined);
   });
 
   it('shouldn\'t change checkbo notate after hitting other keys then DELETE or BACKSPACE (from #bad-value# state)', () => {
@@ -816,6 +894,104 @@ describe('CheckboxRenderer', () => {
     expect(labelFunction.calls.argsFor(0)).toEqual([0, 0, 'checked', true]);
     expect(labelFunction.calls.argsFor(1)).toEqual([1, 0, 'checked', false]);
     expect(getCell(0, 0).querySelector('label').lastChild.textContent).toEqual('myLabel');
+  });
+
+  it('should remove checkbox and do not add #bad-value# content after cut action', () => {
+    const hot = handsontable({
+      data: [
+        { car: 'Mercedes A 160', available: true, comesInBlack: 'yes' },
+        { car: 'Citroen C4 Coupe', available: false, comesInBlack: '' },
+        { car: 'Audi A4 Avant', available: true, comesInBlack: 'no' },
+      ],
+      colHeaders: ['Car model', 'Accepted', 'Comes in black'],
+      columns: [
+        {
+          data: 'car'
+        },
+        {
+          data: 'available',
+          type: 'checkbox',
+          label: {
+            position: 'after',
+            property: 'car'
+          },
+        },
+        {
+          data: 'comesInBlack',
+          type: 'checkbox',
+          checkedTemplate: 'yes',
+          uncheckedTemplate: 'no',
+        },
+      ],
+    });
+    const cutEvent = getClipboardEvent('cut');
+    const plugin = hot.getPlugin('CopyPaste');
+    const td = hot.getCell(0, 1);
+    const td2 = hot.getCell(0, 2);
+    const td3 = hot.getCell(1, 1);
+    const td4 = hot.getCell(1, 2);
+    const td5 = hot.getCell(2, 1);
+    const td6 = hot.getCell(2, 2);
+
+    selectCell(0, 0, 2, 2);
+
+    plugin.onCut(cutEvent);
+
+    expect(td.textContent).toBe('');
+    expect(td2.textContent).toBe('');
+    expect(td3.textContent).toBe('');
+    expect(td4.textContent).toBe('');
+    expect(td5.textContent).toBe('');
+    expect(td6.textContent).toBe('');
+
+    expect(getDataAtCell(0, 0)).toEqual(null);
+    expect(getDataAtCell(0, 1)).toEqual(null);
+    expect(getDataAtCell(0, 2)).toEqual(null);
+    expect(getDataAtCell(1, 0)).toEqual(null);
+    expect(getDataAtCell(1, 1)).toEqual(null);
+    expect(getDataAtCell(1, 2)).toEqual(null);
+    expect(getDataAtCell(2, 0)).toEqual(null);
+    expect(getDataAtCell(2, 1)).toEqual(null);
+    expect(getDataAtCell(2, 2)).toEqual(null);
+  });
+
+  it('should remove #bad-value# content after cut action', () => {
+    const hot = handsontable({
+      data: [
+        { car: 'Mercedes A 160', available: true, comesInBlack: 'yes' },
+        { car: 'Citroen C4 Coupe', available: false, comesInBlack: '' },
+        { car: 'Audi A4 Avant', available: true, comesInBlack: 'no' },
+      ],
+      colHeaders: ['Car model', 'Accepted', 'Comes in black'],
+      columns: [
+        {
+          data: 'car'
+        },
+        {
+          data: 'available',
+          type: 'checkbox',
+          label: {
+            position: 'after',
+            property: 'car'
+          },
+        },
+        {
+          data: 'comesInBlack',
+          type: 'checkbox',
+          checkedTemplate: 'yes',
+          uncheckedTemplate: 'no',
+        },
+      ],
+    });
+    const cutEvent = getClipboardEvent('cut');
+    const plugin = hot.getPlugin('CopyPaste');
+    const td = hot.getCell(1, 2);
+
+    selectCell(1, 2);
+
+    plugin.onCut(cutEvent);
+
+    expect(td.textContent).toBe('');
   });
 
   describe('CheckboxRenderer with ContextMenu', () => {

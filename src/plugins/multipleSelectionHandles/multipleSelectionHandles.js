@@ -11,7 +11,7 @@ import { CellCoords } from './../../3rdparty/walkontable/src';
  */
 class MultipleSelectionHandles extends BasePlugin {
   /**
-   * @param {Object} hotInstance
+   * @param {object} hotInstance The handsontable instance.
    */
   constructor(hotInstance) {
     super(hotInstance);
@@ -34,7 +34,7 @@ class MultipleSelectionHandles extends BasePlugin {
   /**
    * Check if the plugin is enabled in the handsontable settings.
    *
-   * @returns {Boolean}
+   * @returns {boolean}
    */
   isEnabled() {
     return isMobileBrowser();
@@ -55,12 +55,18 @@ class MultipleSelectionHandles extends BasePlugin {
   }
 
   /**
-   * Bind the touch events
+   * Bind the touch events.
+   *
    * @private
    */
   registerListeners() {
     const _this = this;
+    const { rootElement } = this.hot;
 
+    /**
+     * @param {string} query Query for the position.
+     * @returns {boolean}
+     */
     function removeFromDragged(query) {
 
       if (_this.dragged.length === 1) {
@@ -81,7 +87,7 @@ class MultipleSelectionHandles extends BasePlugin {
       }
     }
 
-    this.eventManager.addEventListener(this.hot.rootElement, 'touchstart', (event) => {
+    this.eventManager.addEventListener(rootElement, 'touchstart', (event) => {
       let selectedRange;
 
       if (hasClass(event.target, 'topLeftSelectionHandle-HitArea')) {
@@ -114,7 +120,7 @@ class MultipleSelectionHandles extends BasePlugin {
       }
     });
 
-    this.eventManager.addEventListener(this.hot.rootElement, 'touchend', (event) => {
+    this.eventManager.addEventListener(rootElement, 'touchend', (event) => {
       if (hasClass(event.target, 'topLeftSelectionHandle-HitArea')) {
         removeFromDragged.call(_this, 'topLeft');
 
@@ -133,9 +139,10 @@ class MultipleSelectionHandles extends BasePlugin {
       }
     });
 
-    this.eventManager.addEventListener(this.hot.rootElement, 'touchmove', (event) => {
-      const scrollTop = getWindowScrollTop();
-      const scrollLeft = getWindowScrollLeft();
+    this.eventManager.addEventListener(rootElement, 'touchmove', (event) => {
+      const { rootWindow, rootDocument } = this.hot;
+      const scrollTop = getWindowScrollTop(rootWindow);
+      const scrollLeft = getWindowScrollLeft(rootWindow);
       let targetCoords;
       let selectedRange;
       let rangeWidth;
@@ -147,7 +154,7 @@ class MultipleSelectionHandles extends BasePlugin {
         return;
       }
 
-      const endTarget = document.elementFromPoint(
+      const endTarget = rootDocument.elementFromPoint(
         event.touches[0].screenX - scrollLeft,
         event.touches[0].screenY - scrollTop);
 
@@ -171,7 +178,13 @@ class MultipleSelectionHandles extends BasePlugin {
           _this.hot.selection.setRangeEnd(targetCoords);
         }
 
-        newRangeCoords = _this.getCurrentRangeCoords(selectedRange, targetCoords, _this.touchStartRange.direction, rangeDirection, _this.dragged[0]);
+        newRangeCoords = _this.getCurrentRangeCoords(
+          selectedRange,
+          targetCoords,
+          _this.touchStartRange.direction,
+          rangeDirection,
+          _this.dragged[0]
+        );
 
         if (newRangeCoords.start !== null) {
           _this.hot.selection.setRangeStart(newRangeCoords.start);
@@ -354,7 +367,7 @@ class MultipleSelectionHandles extends BasePlugin {
   /**
    * Check if user is currently dragging the handle.
    *
-   * @returns {boolean} Dragging state
+   * @returns {boolean} Dragging state.
    */
   isDragged() {
     return this.dragged.length > 0;

@@ -1,10 +1,12 @@
 import {
   addClass,
+  closest,
   closestDown,
   getParent,
   hasClass,
   isInput,
   removeClass,
+  selectElementIfAllowed
 } from 'handsontable/helpers/dom/element';
 
 describe('DomElement helper', () => {
@@ -28,11 +30,119 @@ describe('DomElement helper', () => {
   });
 
   //
+  // Handsontable.helper.closest
+  //
+  describe('closest', () => {
+    describe('catching errors', () => {
+      it('should return null if element is falsy (null, undefined)', () => {
+        expect(closest()).toBe(null);
+        expect(closest(null)).toBe(null);
+      });
+
+      it('should return null if element is not valid', () => {
+        expect(closest(123)).toBe(null);
+        expect(closest('123')).toBe(null);
+        expect(closest(true)).toBe(null);
+        expect(closest({})).toBe(null);
+      });
+    });
+
+    describe('lookup for the closest element', () => {
+      let wrapper = null;
+
+      beforeEach(() => {
+        wrapper = document.createElement('div');
+      });
+
+      afterEach(() => {
+        wrapper = null;
+      });
+
+      it('should return element itself if the searched elment is the same one', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+
+        expect(closest(element, [element])).toBe(element);
+        expect(closest(element, ['C'])).toBe(element);
+      });
+
+      it('should return element declared in nodes as string', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+
+        expect(closest(element, ['B'])).toBe(wrapper.querySelector('b'));
+      });
+
+      it('should return null if declared nodes are passed as lowercase string', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+
+        expect(closest(element, ['b'])).toBe(null);
+      });
+
+      it('should return null if the searched element is also an until element', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+        const nodes = ['a', 'b'];
+        const until = element;
+
+        expect(closest(element, nodes, until)).toBe(null);
+      });
+
+      it('should return null if doesn\'t find any element fitting to the nodes\' list', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+        const nodes = ['x', 'y', 'z'];
+
+        expect(closest(element, nodes)).toBe(null);
+      });
+
+      it('should return null if the searched element lies over until element', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = wrapper.querySelector('c');
+        const nodes = ['A'];
+        const until = wrapper.querySelector('b');
+
+        expect(closest(element, nodes, until)).toBe(null);
+      });
+
+      it('should return the closest parent from the starting element', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const parentA = wrapper.querySelector('a');
+        const parentB = wrapper.querySelector('b');
+        const element = wrapper.querySelector('c');
+        const nodes = [parentA, parentB];
+
+        expect(closest(element, nodes)).toBe(parentB);
+      });
+
+      it('should not throw an error if window is starting element', () => {
+        wrapper.innerHTML = '<a><b><c></c></b></a>';
+
+        const element = window;
+        const nodes = ['A'];
+        const until = wrapper.querySelector('b');
+
+        expect(closest(element, nodes, until)).toBe(null);
+      });
+    });
+  });
+
+  //
   // Handsontable.helper.closestDown
   //
   describe('closestDown', () => {
-    const test1 = '<div class="wrapper1"><table><tbody><tr><td class="test1">test1</td></tr></tbody></table></div>';
-    const test2 = `<div class="wrapper2"><table><tbody><tr><td class="test2">test2${test1}</td></tr></tbody></table></div>`;
+    const test1 = '<div class="wrapper1"><table><tbody><tr>' +
+      '<td class="test1">test1</td></tr></tbody></table></div>';
+    const test2 = `<div class="wrapper2"><table><tbody><tr>' +
+      '<td class="test2">test2${test1}</td></tr></tbody></table></div>`;
 
     it('should return last TD element (starting from last child element)', () => {
       const wrapper = document.createElement('div');
@@ -63,7 +173,8 @@ describe('DomElement helper', () => {
 
     beforeEach(() => {
       element = document.createElement('div');
-      element.innerHTML = '<div id="a1"><ul id="a2"></ul><ul id="b2"><li id="a3"><span id="a4">HELLO</span></li></ul></div>';
+      element.innerHTML = '<div id="a1"><ul id="a2"></ul><ul id="b2"><li id="a3">' +
+        '<span id="a4">HELLO</span></li></ul></div>';
     });
 
     afterEach(() => {
@@ -174,6 +285,12 @@ describe('DomElement helper', () => {
       expect(element.className).toBe('test1 test2 test4 test3');
     });
 
+    it('should add all CSS classes without removing old one (passed as an array)', () => {
+      addClass(element, ['test2', 'test4', '', 'test3']);
+
+      expect(element.className).toBe('test1 test2 test4 test3');
+    });
+
     it('should not touch the DOM element when the passed argument is empty', () => {
       const elementMock = {
         classList: {
@@ -198,6 +315,12 @@ describe('DomElement helper', () => {
       addClass(elementMock, ['']);
 
       expect(elementMock.classList.add).not.toHaveBeenCalled();
+    });
+
+    it('should filter empty and falsy classNames', () => {
+      addClass(element, [undefined, null, '', false, 'false']); // only the last one is not filtered
+
+      expect(element.className).toBe('test1 false');
     });
   });
 
@@ -258,6 +381,61 @@ describe('DomElement helper', () => {
       removeClass(elementMock, ['']);
 
       expect(elementMock.classList.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  //
+  // Handsontable.helper.selectElementIfAllowed
+  //
+  describe('selectElementIfAllowed', () => {
+    it('should focus known textarea element', () => {
+      const textarea = document.createElement('textarea');
+
+      document.body.appendChild(textarea);
+
+      textarea.setAttribute('data-hot-input', '');
+      textarea.focus();
+
+      const spy = spyOn(textarea, 'select');
+
+      selectElementIfAllowed(textarea);
+
+      expect(spy).toHaveBeenCalled();
+
+      document.body.removeChild(textarea);
+    });
+
+    it('should not focus unknown textarea element with the same class name as HOT editor input', () => {
+      const textarea = document.createElement('textarea');
+
+      document.body.appendChild(textarea);
+
+      textarea.className = 'handsontableInput';
+      textarea.focus();
+
+      const spy = spyOn(textarea, 'select');
+
+      selectElementIfAllowed(textarea);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      document.body.removeChild(textarea);
+    });
+
+    it('should not focus unknown input (bare input)', () => {
+      const input = document.createElement('input');
+
+      document.body.appendChild(input);
+
+      input.focus();
+
+      const spy = spyOn(input, 'focus');
+
+      selectElementIfAllowed(input);
+
+      expect(spy).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
     });
   });
 });

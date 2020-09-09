@@ -6,8 +6,8 @@ import {
   hasClass,
   outerHeight,
   removeClass,
-  resetCssTransform
 } from './../../../../helpers/dom/element';
+import BottomOverlayTable from './../table/bottom';
 import Overlay from './_base';
 
 /**
@@ -15,7 +15,15 @@ import Overlay from './_base';
  */
 class BottomOverlay extends Overlay {
   /**
-   * @param {Walkontable} wotInstance
+   * Cached value which holds the previous value of the `fixedRowsBottom` option.
+   * It is used as a comparison value that can be used to detect changes in that value.
+   *
+   * @type {number}
+   */
+  cachedFixedRowsBottom = -1;
+
+  /**
+   * @param {Walkontable} wotInstance The Walkontable instance.
    */
   constructor(wotInstance) {
     super(wotInstance);
@@ -23,32 +31,29 @@ class BottomOverlay extends Overlay {
   }
 
   /**
+   * Factory method to create a subclass of `Table` that is relevant to this overlay.
    *
+   * @see Table#constructor
+   * @param {...*} args Parameters that will be forwarded to the `Table` constructor.
+   * @returns {Table}
    */
-  repositionOverlay() {
-    let scrollbarWidth = getScrollbarWidth();
-    const cloneRoot = this.clone.wtTable.holder.parentNode;
-
-    if (this.wot.wtTable.holder.clientHeight === this.wot.wtTable.holder.offsetHeight) {
-      scrollbarWidth = 0;
-    }
-
-    cloneRoot.style.top = '';
-    cloneRoot.style.bottom = `${scrollbarWidth}px`;
+  createTable(...args) {
+    return new BottomOverlayTable(...args);
   }
 
   /**
-   * Checks if overlay should be fully rendered
+   * Checks if overlay should be fully rendered.
    *
-   * @returns {Boolean}
+   * @returns {boolean}
    */
   shouldBeRendered() {
-    /* eslint-disable no-unneeded-ternary */
-    return this.wot.getSetting('fixedRowsBottom') ? true : false;
+    return this.wot.getSetting('shouldRenderBottomOverlay');
   }
 
   /**
-   * Updates the top overlay position
+   * Updates the top overlay position.
+   *
+   * @returns {boolean}
    */
   resetFixedPosition() {
     if (!this.needFullRender || !this.wot.wtTable.holder.parentNode) {
@@ -57,17 +62,21 @@ class BottomOverlay extends Overlay {
     }
 
     const overlayRoot = this.clone.wtTable.holder.parentNode;
-    let headerPosition = 0;
+
     overlayRoot.style.top = '';
 
-    if (this.wot.wtOverlays.leftOverlay.trimmingContainer === window) {
-      const box = this.wot.wtTable.hider.getBoundingClientRect();
-      const bottom = Math.ceil(box.bottom);
+    let headerPosition = 0;
+    const preventOverflow = this.wot.getSetting('preventOverflow');
+
+    if (this.trimmingContainer === this.wot.rootWindow && (!preventOverflow || preventOverflow !== 'vertical')) {
+      const { rootDocument, wtTable } = this.wot;
+      const hiderRect = wtTable.hider.getBoundingClientRect();
+      const bottom = Math.ceil(hiderRect.bottom);
+      const bodyHeight = rootDocument.documentElement.clientHeight;
       let finalLeft;
       let finalBottom;
-      const bodyHeight = document.body.offsetHeight;
 
-      finalLeft = this.wot.wtTable.hider.style.left;
+      finalLeft = wtTable.hider.style.left;
       finalLeft = finalLeft === '' ? 0 : finalLeft;
 
       if (bottom > bodyHeight) {
@@ -75,56 +84,84 @@ class BottomOverlay extends Overlay {
       } else {
         finalBottom = 0;
       }
+
       headerPosition = finalBottom;
       finalBottom += 'px';
 
-      overlayRoot.style.top = '';
       overlayRoot.style.left = finalLeft;
       overlayRoot.style.bottom = finalBottom;
 
     } else {
       headerPosition = this.getScrollPosition();
-      resetCssTransform(overlayRoot);
       this.repositionOverlay();
     }
-    this.adjustHeaderBordersPosition(headerPosition);
+
+    const positionChanged = this.adjustHeaderBordersPosition(headerPosition);
+
+    this.adjustElementsSize();
+
+    return positionChanged;
   }
 
   /**
-   * Sets the main overlay's vertical scroll position
+   * Updates the bottom overlay position.
+   */
+  repositionOverlay() {
+    const { wtTable, rootDocument } = this.wot;
+    const cloneRoot = this.clone.wtTable.holder.parentNode;
+    let scrollbarWidth = getScrollbarWidth(rootDocument);
+
+    if (wtTable.holder.clientHeight === wtTable.holder.offsetHeight) {
+      scrollbarWidth = 0;
+    }
+
+    cloneRoot.style.bottom = `${scrollbarWidth}px`;
+  }
+
+  /**
+   * Sets the main overlay's vertical scroll position.
    *
-   * @param {Number} pos
+   * @param {number} pos The scroll position.
+   * @returns {boolean}
    */
   setScrollPosition(pos) {
-    if (this.mainTableScrollableElement === window) {
-      window.scrollTo(getWindowScrollLeft(), pos);
+    const { rootWindow } = this.wot;
+    let result = false;
 
-    } else {
+    if (this.mainTableScrollableElement === rootWindow) {
+      rootWindow.scrollTo(getWindowScrollLeft(rootWindow), pos);
+      result = true;
+
+    } else if (this.mainTableScrollableElement.scrollTop !== pos) {
       this.mainTableScrollableElement.scrollTop = pos;
+      result = true;
     }
+
+    return result;
   }
 
   /**
-   * Triggers onScroll hook callback
+   * Triggers onScroll hook callback.
    */
   onScroll() {
-    this.wot.getSetting('onScrollVertically');
+    this.wot.getSetting('onScrollHorizontally');
   }
 
   /**
-   * Calculates total sum cells height
+   * Calculates total sum cells height.
    *
-   * @param {Number} from Row index which calculates started from
-   * @param {Number} to Row index where calculation is finished
-   * @returns {Number} Height sum
+   * @param {number} from Row index which calculates started from.
+   * @param {number} to Row index where calculation is finished.
+   * @returns {number} Height sum.
    */
   sumCellSizes(from, to) {
+    const { wtTable, wtSettings } = this.wot;
+    const defaultRowHeight = wtSettings.settings.defaultRowHeight;
     let row = from;
     let sum = 0;
-    const defaultRowHeight = this.wot.wtSettings.settings.defaultRowHeight;
 
     while (row < to) {
-      const height = this.wot.wtTable.getRowHeight(row);
+      const height = wtTable.getRowHeight(row);
 
       sum += height === void 0 ? defaultRowHeight : height;
       row += 1;
@@ -136,7 +173,7 @@ class BottomOverlay extends Overlay {
   /**
    * Adjust overlay root element, childs and master table element sizes (width, height).
    *
-   * @param {Boolean} [force=false]
+   * @param {boolean} [force=false] When `true`, it adjusts the DOM nodes sizes for that overlay.
    */
   adjustElementsSize(force = false) {
     this.updateTrimmingContainer();
@@ -155,41 +192,50 @@ class BottomOverlay extends Overlay {
    * Adjust overlay root element size (width and height).
    */
   adjustRootElementSize() {
-    const masterHolder = this.wot.wtTable.holder;
-    const scrollbarWidth = masterHolder.clientWidth === masterHolder.offsetWidth ? 0 : getScrollbarWidth();
+    const { wtTable, wtViewport, rootWindow } = this.wot;
+    const scrollbarWidth = getScrollbarWidth(this.wot.rootDocument);
     const overlayRoot = this.clone.wtTable.holder.parentNode;
     const overlayRootStyle = overlayRoot.style;
+    const preventOverflow = this.wot.getSetting('preventOverflow');
 
-    if (this.trimmingContainer === window) {
-      overlayRootStyle.width = '';
+    if (this.trimmingContainer !== rootWindow || preventOverflow === 'horizontal') {
+      let width = wtViewport.getWorkspaceWidth();
+
+      if (this.wot.wtOverlays.hasScrollbarRight) {
+        width -= scrollbarWidth;
+      }
+
+      width = Math.min(width, wtTable.wtRootElement.scrollWidth);
+      overlayRootStyle.width = `${width}px`;
 
     } else {
-      overlayRootStyle.width = `${this.wot.wtViewport.getWorkspaceWidth() - scrollbarWidth}px`;
+      overlayRootStyle.width = '';
     }
 
     this.clone.wtTable.holder.style.width = overlayRootStyle.width;
 
-    const tableHeight = outerHeight(this.clone.wtTable.TABLE);
-    overlayRootStyle.height = `${tableHeight === 0 ? tableHeight : tableHeight}px`;
+    let tableHeight = outerHeight(this.clone.wtTable.TABLE);
+
+    if (!this.wot.wtTable.hasDefinedSize()) {
+      tableHeight = 0;
+    }
+
+    overlayRootStyle.height = `${tableHeight}px`;
   }
 
   /**
-   * Adjust overlay root childs size
+   * Adjust overlay root childs size.
    */
   adjustRootChildrenSize() {
-    let scrollbarWidth = getScrollbarWidth();
+    const { holder } = this.clone.wtTable;
 
     this.clone.wtTable.hider.style.width = this.hider.style.width;
-    this.clone.wtTable.holder.style.width = this.clone.wtTable.holder.parentNode.style.width;
-
-    if (scrollbarWidth === 0) {
-      scrollbarWidth = 30;
-    }
-    this.clone.wtTable.holder.style.height = `${parseInt(this.clone.wtTable.holder.parentNode.style.height, 10) + scrollbarWidth}px`;
+    holder.style.width = holder.parentNode.style.width;
+    holder.style.height = holder.parentNode.style.height;
   }
 
   /**
-   * Adjust the overlay dimensions and position
+   * Adjust the overlay dimensions and position.
    */
   applyToDOM() {
     const total = this.wot.getSetting('totalRows');
@@ -207,6 +253,7 @@ class BottomOverlay extends Overlay {
     } else {
       throw new Error('Incorrect value of the rowsRenderCalculator');
     }
+
     this.spreader.style.bottom = '';
 
     if (this.needFullRender) {
@@ -215,7 +262,7 @@ class BottomOverlay extends Overlay {
   }
 
   /**
-   * Synchronize calculated left position to an element
+   * Synchronize calculated left position to an element.
    */
   syncOverlayOffset() {
     if (typeof this.wot.wtViewport.columnsRenderCalculator.startPosition === 'number') {
@@ -227,10 +274,10 @@ class BottomOverlay extends Overlay {
   }
 
   /**
-   * Scrolls vertically to a row
+   * Scrolls vertically to a row.
    *
-   * @param sourceRow {Number} Row index which you want to scroll to
-   * @param [bottomEdge=false] {Boolean} if `true`, scrolls according to the bottom edge (top edge is by default)
+   * @param {number} sourceRow Row index which you want to scroll to.
+   * @param {boolean} [bottomEdge=false] If `true`, scrolls according to the bottom edge (top edge is by default).
    */
   scrollTo(sourceRow, bottomEdge) {
     let newY = this.getTableParentOffset();
@@ -239,7 +286,7 @@ class BottomOverlay extends Overlay {
     let scrollbarCompensation = 0;
 
     if (bottomEdge && mainHolder.offsetHeight !== mainHolder.clientHeight) {
-      scrollbarCompensation = getScrollbarWidth();
+      scrollbarCompensation = getScrollbarWidth(this.wot.rootDocument);
     }
 
     if (bottomEdge) {
@@ -257,12 +304,12 @@ class BottomOverlay extends Overlay {
   }
 
   /**
-   * Gets table parent top position
+   * Gets table parent top position.
    *
-   * @returns {Number}
+   * @returns {number}
    */
   getTableParentOffset() {
-    if (this.mainTableScrollableElement === window) {
+    if (this.mainTableScrollableElement === this.wot.rootWindow) {
       return this.wot.wtTable.holderOffset.top;
     }
 
@@ -270,33 +317,45 @@ class BottomOverlay extends Overlay {
   }
 
   /**
-   * Gets the main overlay's vertical scroll position
+   * Gets the main overlay's vertical scroll position.
    *
-   * @returns {Number} Main table's vertical scroll position
+   * @returns {number} Main table's vertical scroll position.
    */
   getScrollPosition() {
-    return getScrollTop(this.mainTableScrollableElement);
+    return getScrollTop(this.mainTableScrollableElement, this.wot.rootWindow);
   }
 
   /**
-   * Adds css classes to hide the header border's header (cell-selection border hiding issue)
+   * Adds css classes to hide the header border's header (cell-selection border hiding issue).
    *
-   * @param {Number} position Header Y position if trimming container is window or scroll top if not
+   * @param {number} position Header Y position if trimming container is window or scroll top if not.
+   * @returns {boolean}
    */
   adjustHeaderBordersPosition(position) {
-    if (this.wot.getSetting('fixedRowsBottom') === 0 && this.wot.getSetting('columnHeaders').length > 0) {
-      const masterParent = this.wot.wtTable.holder.parentNode;
-      const previousState = hasClass(masterParent, 'innerBorderTop');
+    const fixedRowsBottom = this.wot.getSetting('fixedRowsBottom');
+    const areFixedRowsBottomChanged = this.cachedFixedRowsBottom !== fixedRowsBottom;
+    const columnHeaders = this.wot.getSetting('columnHeaders');
+    let positionChanged = false;
 
-      if (position) {
-        addClass(masterParent, 'innerBorderTop');
+    if ((areFixedRowsBottomChanged || fixedRowsBottom === 0) && columnHeaders.length > 0) {
+      const masterParent = this.wot.wtTable.holder.parentNode;
+      const previousState = hasClass(masterParent, 'innerBorderBottom');
+
+      this.cachedFixedRowsBottom = this.wot.getSetting('fixedRowsBottom');
+
+      if (position || this.wot.getSetting('totalRows') === 0) {
+        addClass(masterParent, 'innerBorderBottom');
+        positionChanged = !previousState;
       } else {
-        removeClass(masterParent, 'innerBorderTop');
+        removeClass(masterParent, 'innerBorderBottom');
+        positionChanged = previousState;
       }
+
       if (!previousState && position || previousState && !position) {
         this.wot.wtOverlays.adjustElementsSize();
       }
     }
+
     // nasty workaround for double border in the header, TODO: find a pure-css solution
     if (this.wot.getSetting('rowHeaders').length === 0) {
       const secondHeaderCell = this.clone.wtTable.THEAD.querySelector('th:nth-of-type(2)');
@@ -305,6 +364,8 @@ class BottomOverlay extends Overlay {
         secondHeaderCell.style['border-left-width'] = 0;
       }
     }
+
+    return positionChanged;
   }
 }
 

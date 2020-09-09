@@ -26,6 +26,35 @@ describe('ColHeader', () => {
     expect(spec().$container.find('thead th').length).toBeGreaterThan(0);
   });
 
+  it('should show col headers if height is set to "auto"', () => {
+    handsontable({
+      colHeaders: true,
+      height: 'auto',
+    });
+
+    expect(spec().$container.find('.handsontable.ht_clone_top').height()).toEqual(26); // THs are 25px height and have 1px border on top
+  });
+
+  it('should properly calculate colHeaders\' overlay width', () => {
+    handsontable({
+      colHeaders: true,
+      startCols: 5,
+      startRows: 1,
+      width: 250,
+      height: 100,
+      colWidths: 50,
+    });
+
+    const cloneTop = spec().$container.find('.ht_clone_top');
+    const masterHolder = spec().$container.find('.ht_master .wtHolder');
+
+    expect(cloneTop.width()).toBe(masterHolder.width());
+
+    alter('insert_row', void 0, 10);
+
+    expect(cloneTop.width()).toBeLessThan(masterHolder.width());
+  });
+
   it('should show default columns headers labelled A-(Z * n)', () => {
     const startCols = 5;
 
@@ -107,18 +136,24 @@ describe('ColHeader', () => {
 
   it('should hide columns headers after updateSettings', () => {
     const hot = handsontable({
-      startCols: 5,
+      startCols: 100,
+      startRows: 100,
+      width: 250,
+      height: 200,
       colHeaders: true
     });
+    let headers = getHtCore().find('thead th').length;
 
-    expect(getHtCore().find('thead th').length).toEqual(5);
-    expect(getTopClone().find('thead th').length).toEqual(5);
+    expect(headers).toBeGreaterThan(0);
+    expect(getTopClone().find('thead th').length).toEqual(headers);
 
     hot.updateSettings({
       colHeaders: false
     });
 
-    expect(getHtCore().find('thead th').length).toEqual(0);
+    headers = getHtCore().find('thead th').length;
+
+    expect(headers).toEqual(0);
     expect(getTopClone().width()).toEqual(0);
   });
 
@@ -354,5 +389,41 @@ describe('ColHeader', () => {
 
     expect(spec().$container.find('.handsontable.ht_clone_top tr:nth-child(1) th:nth-child(1)').height()).toEqual(45);
     expect(spec().$container.find('.handsontable.ht_clone_top tr:nth-child(2) th:nth-child(1)').height()).toEqual(65);
+  });
+
+  it('should display auto-generated headers (the `colHeaders` is set to `true`) in the original order even when columns have been moved', () => {
+    const hot = handsontable({
+      rowHeaders: true,
+      colHeaders: true,
+      startCols: 3,
+      startRows: 1
+    });
+    const htCore = getHtCore();
+
+    hot.columnIndexMapper.setIndexesSequence([2, 1, 0]);
+    hot.render();
+
+    expect(htCore.find('thead th:eq(0)').text()).toEqual(' '); // Row header
+    expect(htCore.find('thead th:eq(1)').text()).toEqual('A');
+    expect(htCore.find('thead th:eq(2)').text()).toEqual('B');
+    expect(htCore.find('thead th:eq(3)').text()).toEqual('C');
+  });
+
+  it('should move the defined headers with columns when the `colHeaders` option is set to a custom value and columns have been moved', () => {
+    const hot = handsontable({
+      rowHeaders: true,
+      colHeaders: ['0', '1', '2'],
+      startCols: 3,
+      startRows: 1
+    });
+    const htCore = getHtCore();
+
+    hot.columnIndexMapper.setIndexesSequence([2, 1, 0]);
+    hot.render();
+
+    expect(htCore.find('thead th:eq(0)').text()).toEqual(' '); // Row header
+    expect(htCore.find('thead th:eq(1)').text()).toEqual('2');
+    expect(htCore.find('thead th:eq(2)').text()).toEqual('1');
+    expect(htCore.find('thead th:eq(3)').text()).toEqual('0');
   });
 });

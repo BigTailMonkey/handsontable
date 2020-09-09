@@ -48,10 +48,12 @@ describe('Core_destroy', () => {
     const hot = handsontable();
 
     destroy();
+    spec().$container.remove();
 
     expect(() => {
       hot.getDataAtCell(0, 0);
-    }).toThrowError('The "getDataAtCell" method cannot be called because this Handsontable instance has been destroyed');
+    }).toThrowError('The "getDataAtCell" method cannot be called because this ' +
+      'Handsontable instance has been destroyed');
     expect(() => {
       hot.listen();
     }).toThrowError('The "listen" method cannot be called because this Handsontable instance has been destroyed');
@@ -65,5 +67,33 @@ describe('Core_destroy', () => {
     destroy();
 
     expect(hot.isDestroyed).toBe(true);
+  });
+
+  it('should update index mappers cache only when necessary', () => {
+    const hot = handsontable({
+      data: [['a'], ['b'], ['c']],
+      autoRowSize: true,
+      autoColumnSize: true,
+      bindRowsWithHeaders: 'strict',
+      columnSorting: true,
+      filters: true,
+      manualColumnResize: true,
+      manualRowResize: true,
+      nestedRows: true,
+      trimRows: true
+    });
+    const rowCacheUpdatedCallback = jasmine.createSpy('cacheUpdated');
+    const columnCacheUpdatedCallback = jasmine.createSpy('cacheUpdated');
+
+    hot.rowIndexMapper.addLocalHook('cacheUpdated', rowCacheUpdatedCallback);
+    hot.columnIndexMapper.addLocalHook('cacheUpdated', columnCacheUpdatedCallback);
+
+    destroy();
+
+    // There is at least one plugin registering map which can update cache by change in its own map.
+    expect(rowCacheUpdatedCallback.calls.count()).toEqual(1);
+
+    // There is no plugin which can change cache by its own map.
+    expect(columnCacheUpdatedCallback.calls.count()).toEqual(0);
   });
 });

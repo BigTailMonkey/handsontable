@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Config responsible for building Walkontable test files (bundled into `src/3rdparty/walkontable/test/dist/`):
  *  - specs.entry.js
@@ -14,10 +12,12 @@ const wotPath = path.resolve(__dirname, '../src/3rdparty/walkontable');
 module.exports.create = function create(envArgs) {
   const config = {
     target: 'web',
+    mode: 'none',
     devtool: 'cheap-module-source-map',
     output: {
-      libraryTarget: 'var',
       filename: '[name].entry.js',
+      globalObject: `typeof self !== 'undefined' ? self : this`,
+      libraryTarget: 'var',
       path: path.resolve(wotPath, 'test/dist'),
     },
     module: {
@@ -47,6 +47,7 @@ module.exports.create = function create(envArgs) {
         baseJasminePath: '../../../../',
         externalCssFiles: [
           '../css/walkontable.css',
+          '../css/walkontable.test.css',
         ],
         externalJsFiles: [
           'helpers/jasmine-bridge-reporter.js',
